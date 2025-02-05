@@ -4,6 +4,8 @@ import time
 import sys
 import platform
 import numpy as np
+import pandas as pd
+from datetime import datetime
 
 def check_camera_permissions():
     if platform.system() == 'Darwin':  # macOS
@@ -60,6 +62,10 @@ def count_people_live():
     
     print("Starting live person detection... Press 'q' to quit")
     
+    # Initialize variables for tracking changes
+    previous_count = None
+    data = []  # List to store (datetime, count) tuples
+    
     try:
         while True:
             # Read a frame from the webcam
@@ -73,6 +79,14 @@ def count_people_live():
             
             # Count people (class 0 in COCO dataset is 'person')
             people_count = sum(1 for box in results[0].boxes if box.cls == 0)
+            
+            # If count changed, record it
+            if people_count != previous_count:
+                data.append({
+                    'datetime': datetime.now(),
+                    'num_people': people_count
+                })
+                previous_count = people_count
             
             # Draw detection boxes
             annotated_frame = results[0].plot()
@@ -95,6 +109,16 @@ def count_people_live():
         # Release the video capture object and destroy windows
         video.release()
         cv2.destroyAllWindows()
+
+        print(data)
+        
+        # Save the data to CSV if we have any records
+        if data:
+            df = pd.DataFrame(data)
+            df.to_csv('data.csv', index=False)
+            print(f"\nData saved to data.csv with {len(data)} records")
+        else:
+            print("\nNo data was collected")
 
 if __name__ == "__main__":
     count_people_live() 
