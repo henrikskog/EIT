@@ -6,6 +6,7 @@ import numpy as np
 import cv2 as cv
 import Person
 import time
+import sys
 
 try:
     log = open('log.txt',"w")
@@ -17,13 +18,17 @@ cnt_up   = 0
 cnt_down = 0
 
 #Fuente de video
-cap = cv.VideoCapture(0)
-#cap = cv.VideoCapture('Test Files/TestVideo.avi')
-#camera = PiCamera()
-##camera.resolution = (160,120)
-##camera.framerate = 5
-##rawCapture = PiRGBArray(camera, size=(160,120))
-##time.sleep(0.1)
+esp32_stream_url = "http://192.168.11.87:81/stream"
+cap = cv.VideoCapture(esp32_stream_url)
+
+# Check if the stream is opened successfully
+if not cap.isOpened():
+    print("Error: Could not connect to ESP32-CAM stream")
+    print("Please check if the ESP32-CAM is powered on and connected to the network")
+    print(f"Make sure the stream URL is correct: {esp32_stream_url}")
+    sys.exit(1)
+
+print("Connected to ESP32-CAM stream successfully")
 
 #Propiedades del video
 ##cap.set(3,160) #Width
@@ -83,10 +88,13 @@ max_p_age = 5
 pid = 1
 
 while(cap.isOpened()):
-##for image in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
     #Lee una imagen de la fuente de video
     ret, frame = cap.read()
-##    frame = image.array
+    if not ret:
+        print("Error: Could not read frame from ESP32-CAM stream")
+        print("Attempting to reconnect...")
+        cap = cv.VideoCapture(esp32_stream_url)
+        continue
 
     for i in persons:
         i.age_one() #age every person one frame
