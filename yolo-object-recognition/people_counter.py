@@ -48,19 +48,25 @@ def add_overlay(frame, people_count):
     return frame
 
 def count_people_live():
+    print("Starting live person detection...")
     # Load the YOLO model
     model = YOLO('yolov8n.pt')
+    print("Model loaded")
     
-    # Open the webcam (0 is usually the default webcam)
-    video = cv2.VideoCapture(0)
+    # ESP32-CAM stream URL
+    esp32_stream_url = "http://192.168.11.87:81/stream"
     
-    # Check if the webcam is opened successfully
+    # Open the ESP32-CAM stream
+    video = cv2.VideoCapture(esp32_stream_url)
+    
+    # Check if the stream is opened successfully
     if not video.isOpened():
-        print("Error: Could not open webcam")
-        check_camera_permissions()
+        print("Error: Could not connect to ESP32-CAM stream")
+        print("Please check if the ESP32-CAM is powered on and connected to the network")
+        print(f"Make sure the stream URL is correct: {esp32_stream_url}")
         return
     
-    print("Starting live person detection... Press 'q' to quit")
+    print("Starting live person detection from ESP32-CAM... Press 'q' to quit")
     
     # Initialize variables for tracking changes
     previous_count = None
@@ -68,11 +74,13 @@ def count_people_live():
     
     try:
         while True:
-            # Read a frame from the webcam
+            # Read a frame from the stream
             success, frame = video.read()
             if not success:
-                print("Error: Could not read frame")
-                break
+                print("Error: Could not read frame from ESP32-CAM stream")
+                print("Attempting to reconnect...")
+                video = cv2.VideoCapture(esp32_stream_url)
+                continue
             
             # Run YOLO detection
             results = model(frame)
