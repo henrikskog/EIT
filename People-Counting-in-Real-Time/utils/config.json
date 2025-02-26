@@ -1,12 +1,13 @@
 {
     "Email_Send": "",
-    "Email_Receive": "",
+    "Email_Receive": "your_email@gmail.com",
     "Email_Password": "",
-    "url": "0",
+    "url": "http://172.20.10.3:81/stream",
     "ALERT": false,
     "Threshold": 10,
     "Thread": false,
-    "Log": false,
+    "Log": true,
     "Scheduler": false,
-    "Timer": false
+    "Timer": false,
+    "AutoSaveVideo": true
 }

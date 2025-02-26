@@ -65,6 +65,13 @@ def log_data(move_in, in_time, move_out, out_time):
 def people_counter():
 	# main function for people_counter.py
 	args = parse_arguments()
+	
+	# If output is not specified but auto-save is enabled, create a timestamped filename
+	if args["output"] is None and config.get("AutoSaveVideo", False):
+		timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+		args["output"] = f"output_{timestamp}.mp4"
+		logger.info(f"Auto-saving video to {args['output']}")
+	
 	# initialize the list of class labels MobileNet SSD was trained to detect
 	CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat",
 		"bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
@@ -146,6 +153,7 @@ def people_counter():
 			fourcc = cv2.VideoWriter_fourcc(*"mp4v")
 			writer = cv2.VideoWriter(args["output"], fourcc, 30,
 				(W, H), True)
+			logger.info(f"Recording video to {args['output']}")
 
 		# initialize the current status along with our list of bounding
 		# box rectangles returned by either (1) our object detector or
@@ -349,6 +357,11 @@ def people_counter():
 	fps.stop()
 	logger.info("Elapsed time: {:.2f}".format(fps.elapsed()))
 	logger.info("Approx. FPS: {:.2f}".format(fps.fps()))
+
+	# release the video writer if it was used
+	if writer is not None:
+		writer.release()
+		logger.info(f"Video saved to {args['output']}")
 
 	# release the camera device/resource (issue 15)
 	if config["Thread"]:
