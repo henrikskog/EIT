@@ -36,4 +36,5 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 yolo-object-recognition/*.pt
+yolo-object-recognition/*.mp4
 

@@ -6,6 +6,7 @@ import platform
 import numpy as np
 import pandas as pd
 from datetime import datetime
+import os
 
 def check_camera_permissions():
     if platform.system() == 'Darwin':  # macOS
@@ -53,20 +54,36 @@ def count_people_live():
     model = YOLO('yolov8n.pt')
     print("Model loaded")
     
-    # ESP32-CAM stream URL
-    esp32_stream_url = "http://192.168.11.87:81/stream"
+    # Determine camera source based on environment variable
+    use_macos_camera = os.environ.get('USE_MACOS_CAMERA', 'false').lower() == 'true'
     
-    # Open the ESP32-CAM stream
-    video = cv2.VideoCapture(esp32_stream_url)
+    if use_macos_camera:
+        print("Using macOS camera...")
+        # Check for camera permissions on macOS
+        if platform.system() == 'Darwin':
+            check_camera_permissions()
+        # Use default camera (usually built-in webcam)
+        video = cv2.VideoCapture(0)
+    else:
+        # ESP32-CAM stream URL
+        esp32_stream_url = "http://172.20.10.3:81/stream"
+        print(f"Using ESP32-CAM stream: {esp32_stream_url}")
+        # Open the ESP32-CAM stream
+        video = cv2.VideoCapture(esp32_stream_url)
     
-    # Check if the stream is opened successfully
+    # Check if the camera/stream is opened successfully
     if not video.isOpened():
-        print("Error: Could not connect to ESP32-CAM stream")
-        print("Please check if the ESP32-CAM is powered on and connected to the network")
-        print(f"Make sure the stream URL is correct: {esp32_stream_url}")
+        if use_macos_camera:
+            print("Error: Could not access macOS camera")
+            print("Please check camera permissions")
+        else:
+            print("Error: Could not connect to ESP32-CAM stream")
+            print("Please check if the ESP32-CAM is powered on and connected to the network")
+            print(f"Make sure the stream URL is correct: {esp32_stream_url}")
         return
     
-    print("Starting live person detection from ESP32-CAM... Press 'q' to quit")
+    source_text = "macOS camera" if use_macos_camera else "ESP32-CAM"
+    print(f"Starting live person detection from {source_text}... Press 'q' to quit")
     
     # Initialize variables for tracking changes
     previous_count = None
@@ -77,9 +94,10 @@ def count_people_live():
             # Read a frame from the stream
             success, frame = video.read()
             if not success:
-                print("Error: Could not read frame from ESP32-CAM stream")
-                print("Attempting to reconnect...")
-                video = cv2.VideoCapture(esp32_stream_url)
+                print(f"Error: Could not read frame from {source_text}")
+                if not use_macos_camera:
+                    print("Attempting to reconnect...")
+                    video = cv2.VideoCapture(esp32_stream_url)
                 continue
             
             # Run YOLO detection
