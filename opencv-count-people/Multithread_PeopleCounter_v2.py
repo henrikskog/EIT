@@ -11,13 +11,22 @@ from os import getcwd
 import cProfile
 import threading
 import psutil
+import sys
+import os
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+PARENT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, '..'))
+sys.path.append(PARENT_DIR)
+#import webpage.shared_data as shared_data
+import webpage.shared_data
+
+from webpage.app.app import run_flask_app
 
 # Flags to enable or disable features
-ENABLE_MULTITHREADING = False
+ENABLE_MULTITHREADING = True
 ENABLE_CPROFILE = False
 ENABLE_PSUTIL = True
 CPU_LOG_FREQUENCY = 100  # Log CPU usage every 100th frame
-ENABLE_FEED = False  # Flag to enable or disable plotting
+ENABLE_FEED = True  # Flag to enable or disable plotting
 
 # Flag to indicate when to terminate the program
 terminate_program = False
@@ -73,11 +82,13 @@ def main():
 
     print(f"Current working directory: {getcwd()}")
     # Counters
-    cnt_up = 0
-    cnt_down = 0
+    #cnt_up = 0
+    #cnt_down = 0
+    webpage.shared_data.cnt_up = 0
+    webpage.shared_data.cnt_down = 0
 
     # Video Source
-    esp32_stream_url = "http://192.168.1.191:81/stream"
+    esp32_stream_url = "http://192.168.251.51:81/stream"
     video_stream = VideoStream(esp32_stream_url).start()
 
     # Check if the stream is opened successfully
@@ -96,11 +107,11 @@ def main():
     h = 480
     w = 640
     frameArea = h * w
-    areaTH = frameArea / 100  # Optimized for 640x480 frame size wide angle lens at 2.4m height
+    areaTH = frameArea / 20  # Optimized for 640x480 frame size wide angle lens at 2.4m height
     print(f"Area Threshold {areaTH}")  # Movement group at least 1% of the frame area counts as a moving person
 
     # Boundary lines
-    line_up = int(5 * (h / 10))
+    line_up = int(4 * (h / 10))
     line_down = int(6 * (h / 10))
 
     up_limit = int(1 * (h / 5))
@@ -185,8 +196,8 @@ def main():
             mask = cv.morphologyEx(mask, cv.MORPH_CLOSE, kernelCl)
         except:
             print("End Of Function")
-            print(f"UP: {cnt_up}")
-            print(f"DOWN: {cnt_down}")
+            print(f"UP: {webpage.shared_data.cnt_up}")
+            print(f"DOWN: {webpage.shared_data.cnt_down}")
             break
         ################
         #   CONTOURS   #
@@ -215,11 +226,11 @@ def main():
                             new = False
                             i.updateCoords(cx, cy)  # Updates coordinates on the object and resets age
                             if i.going_UP(line_down, line_up):
-                                cnt_up += 1
+                                webpage.shared_data.cnt_up += 1
                                 print(f"ID:{i.getId()} going up at {strftime('%c')}")
                                 log.write(f"ID:{i.getId()} going up at {strftime('%c')} \n")
                             elif i.going_DOWN(line_down, line_up):
-                                cnt_down += 1
+                                webpage.shared_data.cnt_down += 1
                                 print(f"ID:{i.getId()} going down at {strftime('%c')}")
                                 log.write(f"ID:{i.getId()} going down at {strftime('%c')} \n")
                             break
@@ -254,16 +265,16 @@ def main():
                 pts = pts.reshape((-1, 1, 2))
                 if ENABLE_FEED:
                     frame = cv.polylines(frame, [pts], False, i.getRGB())
-            if i.getId() == 9:
-                print(str(i.getX()), ',', str(i.getY()))
+            #if i.getId() == 9:
+             #   print(str(i.getX()), ',', str(i.getY()))
             if ENABLE_FEED:
                 cv.putText(frame, str(i.getId()), (i.getX(), i.getY()), font, 0.3, i.getRGB(), 1, cv.LINE_AA)
 
         ####################
         #   VIDEO STREAM   #
         ####################
-        str_up = 'UP: ' + str(cnt_up)
-        str_down = 'DOWN: ' + str(cnt_down)
+        str_up = 'UP: ' + str(webpage.shared_data.cnt_up)
+        str_down = 'DOWN: ' + str(webpage.shared_data.cnt_down)
         if ENABLE_FEED:
             frame = cv.polylines(frame, [pts_L1], False, line_down_color, thickness=2)
             frame = cv.polylines(frame, [pts_L2], False, line_up_color, thickness=2)
@@ -330,8 +341,19 @@ def main():
     video_stream.stop()
     cv.destroyAllWindows()
 
-if __name__ == "__main__":
+def run_everything():
+    """
+    Helper function if you prefer to keep the cProfile / main logic together.
+    """
     if ENABLE_CPROFILE:
         cProfile.run('main()')
     else:
         main()
+
+if __name__ == "__main__":
+    # 1) Start the Flask server in a separate thread
+    flask_thread = threading.Thread(target=run_flask_app, daemon=True)
+    flask_thread.start()
+
+    # 2) Run the main people-counting logic
+    run_everything()
